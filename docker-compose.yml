@@ -1,0 +1,17 @@
+name: Task-Project
+
+version: '1.0'
+
+services:
+  pg:
+    image: "bitnami/postgresql:latest"
+
+    ports:
+      - "5432:5432"
+    env_file:
+      - .env
+    volumes:
+      - pg_data:/bitnami/postgresql
+
+volumes:
+  pg_data:
