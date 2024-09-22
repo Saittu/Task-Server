@@ -1,12 +1,20 @@
-import http from 'node:http'
+import {
+  serializerCompiler,
+  validatorCompiler,
+  type FastifyPluginAsyncZod,
+} from 'fastify-type-provider-zod'
+import fastify from 'fastify'
+import { postUserRoute } from './http/post-user-route'
+import { getUsersRoute } from './http/get-users-route'
+// import { deleteUserRoute } from './http/delete-user-route'
 
-const DATABASE_URL = `${process.env.DATABASE_URL}`
+const app = fastify()
 
-const app = http.createServer((req, res) => {
-  res.end('hello word')
-})
+app.setValidatorCompiler(validatorCompiler)
+app.setSerializerCompiler(serializerCompiler)
 
-app.listen(5555, () => {
-  console.log('SERVER IS RUNNIG')
-  console.log(DATABASE_URL)
-})
+app.register(postUserRoute)
+app.register(getUsersRoute)
+// app.register(deleteUserRoute)
+
+app.listen({ port: 5555 }).then(() => console.log('SERVER RUNNIG'))
