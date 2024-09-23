@@ -1,6 +1,6 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { z } from 'zod'
-import { patchUser } from '../functions/users/patch-user'
+import { patchUser } from '../../functions/users/patch-user'
 
 export const patchUserRoute: FastifyPluginAsyncZod = async app => {
   app.patch(
@@ -13,18 +13,26 @@ export const patchUserRoute: FastifyPluginAsyncZod = async app => {
         body: z.object({
           name: z.string().optional(),
           email: z.string().optional(),
-          password: z.string(),
+          newPassword: z.string(),
           passwordConfirm: z.string(),
+          password: z.string(),
         }),
       },
     },
     async req => {
       const { id } = req.params
-      const { name, email, password, passwordConfirm } = req.body
+      const { name, email, newPassword, password, passwordConfirm } = req.body
 
-      const updatedUser = await patchUser({ id, name, email,  password, passwordConfirm })
+      const updatedUser = await patchUser({
+        id,
+        name,
+        email,
+        newPassword,
+        password,
+        passwordConfirm,
+      })
 
-      return { message: "Usuário atualizado com sucesso!", users: updatedUser }
+      return { message: 'Usuário atualizado com sucesso!', users: updatedUser }
     }
   )
 }

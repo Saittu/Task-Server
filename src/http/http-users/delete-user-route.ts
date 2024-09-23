@@ -1,6 +1,6 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { z } from 'zod'
-import { deleteUser } from '../functions/users/delete-user'
+import { deleteUser } from '../../functions/users/delete-user'
 
 export const deleteUserRoute: FastifyPluginAsyncZod = async app => {
   app.delete(

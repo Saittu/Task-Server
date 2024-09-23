@@ -1,8 +1,8 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import z from 'zod'
-import { postUser } from '../functions/users/post-user'
-import { db } from '../db'
-import { users } from '../db/schema'
+import { postUser } from '../../functions/users/post-user'
+import { db } from '../../db'
+import { users } from '../../db/schema'
 import { eq } from 'drizzle-orm'
 
 export const postUserRoute: FastifyPluginAsyncZod = async app => {

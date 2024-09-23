@@ -1,15 +1,15 @@
-import type { FastifyPluginAsync } from 'fastify'
 import { db } from '../../db'
 import { users } from '../../db/schema'
-import { eq, or } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import bcrypt from 'bcrypt'
 
 interface PatchUserRequest {
   id: string
   name?: string
   email?: string
-  password: string
+  newPassword: string
   passwordConfirm: string
+  password: string
 }
 
 export async function patchUser({
@@ -17,22 +17,22 @@ export async function patchUser({
   name,
   email,
   password,
+  newPassword,
   passwordConfirm,
 }: PatchUserRequest) {
-  const existingUser = await db
-    .select()
-    .from(users)
-    .where(eq(users.id, id))
-    .limit(1)
+  const [user] = await db.select().from(users).where(eq(users.id, id))
 
-  if (existingUser.length === 0) {
+  if (!user) {
     throw new Error('Usuário não encontrado')
   }
 
-  const user = existingUser[0]
+  const isValidPassword = await bcrypt.compare(password, user.password)
 
-  if(passwordConfirm !== password) {
-    throw new Error("Confirmação incorreta!")
+  if (newPassword !== passwordConfirm) {
+    throw new Error('As senhas a serem atualizadas não batem!')
+  }
+  if (!isValidPassword) {
+    throw new Error('Senha atual incorreta!')
   }
 
   const updatedFields: Partial<{
@@ -43,14 +43,19 @@ export async function patchUser({
 
   if (name) updatedFields.name = name
   if (email) updatedFields.email = email
+  if (password) updatedFields.password = newPassword
+
+  if (newPassword) {
+    const hashedPassword = await bcrypt.hashSync(newPassword, 10)
+    updatedFields.password = hashedPassword
+  }
 
   await db.update(users).set(updatedFields).where(eq(users.id, user.id))
 
-  const updatedUser = await db
+  const [updatedUser] = await db
     .select()
     .from(users)
-    .where(eq(users.id, id))
-    .limit(1)
+    .where(eq(users.id, user.id))
 
-  return updatedUser[0]
+  return updatedUser
 }
