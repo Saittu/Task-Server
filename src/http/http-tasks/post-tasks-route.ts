@@ -8,7 +8,7 @@ import { postTask } from '../../functions/tasks/post-tasks'
 
 export const postTaskRoute: FastifyPluginAsyncZod = async app => {
   app.post(
-    '/tasks/:id',
+    '/tasks/:userId',
     {
       schema: {
         params: z.object({
@@ -20,11 +20,13 @@ export const postTaskRoute: FastifyPluginAsyncZod = async app => {
         }),
       },
     },
-    async (request, reply) => {
-      const { userId } = request.params
-      const { title, weeklyFrequency } = request.body
+    async (req, res) => {
+      const { userId } = req.params
+      const { title, weeklyFrequency } = req.body
 
       await postTask({ userId, title, weeklyFrequency })
+
+      res.send({ message: 'Task criada com sucesso!' })
     }
   )
 }
