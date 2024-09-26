@@ -3,7 +3,11 @@ import { db } from '../../db'
 import { taskCompleted, tasks, users } from '../../db/schema'
 import { and, desc, eq, gte, lte, sql } from 'drizzle-orm'
 
-export async function getCompletedTasks() {
+interface GetCompletedTasks {
+  userId: string
+}
+
+export async function getCompletedTasks({ userId }: GetCompletedTasks) {
   const firstDayOfWeek = dayjs().startOf('week').toDate()
   const lastDayOfWeek = dayjs().endOf('week').toDate()
 
@@ -17,7 +21,7 @@ export async function getCompletedTasks() {
         createdAt: tasks.createdAt,
       })
       .from(tasks)
-      .where(lte(tasks.createdAt, lastDayOfWeek))
+      .where(and(eq(tasks.userId, userId), lte(tasks.createdAt, lastDayOfWeek)))
   )
 
   const tasksCompletedInWeek = db.$with('tasks_completed_in_week').as(
@@ -25,7 +29,7 @@ export async function getCompletedTasks() {
       .select({
         id: taskCompleted.id,
         title: tasks.title,
-        completedAt: tasksCreatedInWeek.createdAt,
+        completedAt: taskCompleted.createdAt,
         completedAtDate: sql /*sql*/`
             DATE(${taskCompleted.createdAt})
         `.as('completedAtDate'),
@@ -34,6 +38,7 @@ export async function getCompletedTasks() {
       .innerJoin(tasks, eq(tasks.id, taskCompleted.taskId))
       .where(
         and(
+          eq(tasks.userId, userId),
           gte(taskCompleted.createdAt, firstDayOfWeek),
           lte(taskCompleted.createdAt, lastDayOfWeek)
         )
@@ -50,7 +55,7 @@ export async function getCompletedTasks() {
                 JSON_BUILD_OBJECT(
                     'id', ${taskCompleted.id},
                     'title', ${tasks.title},
-                    'completedAt', ${taskCompleted.createdAt}
+                    'completedAt', ${tasksCompletedInWeek.completedAt}
                 )
             )
         `.as('completions'),
@@ -65,11 +70,12 @@ export async function getCompletedTasks() {
     {
       id: string
       title: string
-      createdAt: string
+      completedAt: string
     }
   >
 
   const result = await db
+    .with(tasksCreatedInWeek, tasksCompletedInWeek, taskCompletedByWeek)
     .select({
       completed: sql /*sql*/`
         (SELECT COUNT(*) FROM ${tasksCompletedInWeek})
@@ -79,7 +85,7 @@ export async function getCompletedTasks() {
     `.mapWith(Number),
       TasksPerDay: sql /*sql*/<TasksPerDay>`
         JSON_OBJECT_AGG(
-            ${taskCompletedByWeek.completedAtDate}
+            ${taskCompletedByWeek.completedAtDate},
             ${taskCompletedByWeek.completions}
         )
     `,

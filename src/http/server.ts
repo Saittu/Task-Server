@@ -11,6 +11,7 @@ import { patchUserRoute } from './http-users/patch-user-route'
 import { postTaskRoute } from './http-tasks/post-tasks-route'
 import { getPendingTaks } from './http-tasks/get-tasks-route'
 import { postTasksComplitionRoute } from './http-tasks/post-tasks-complition-route'
+import { getCompletedTasksRoute } from './http-tasks/get-completed-tasks-route'
 
 const app = fastify()
 
@@ -24,5 +25,6 @@ app.register(patchUserRoute)
 app.register(postTaskRoute)
 app.register(getPendingTaks)
 app.register(postTasksComplitionRoute)
+app.register(getCompletedTasksRoute)
 
 app.listen({ port: 5555 }).then(() => console.log('SERVER RUNNIG'))
