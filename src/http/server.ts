@@ -12,6 +12,7 @@ import { postTaskRoute } from './http-tasks/post-tasks-route'
 import { getPendingTaks } from './http-tasks/get-tasks-route'
 import { postTasksComplitionRoute } from './http-tasks/post-tasks-complition-route'
 import { getCompletedTasksRoute } from './http-tasks/get-completed-tasks-route'
+import { deleteTasksRoute } from './http-tasks/delete-task-route'
 
 const app = fastify()
 
@@ -26,5 +27,6 @@ app.register(postTaskRoute)
 app.register(getPendingTaks)
 app.register(postTasksComplitionRoute)
 app.register(getCompletedTasksRoute)
+app.register(deleteTasksRoute)
 
 app.listen({ port: 5555 }).then(() => console.log('SERVER RUNNIG'))

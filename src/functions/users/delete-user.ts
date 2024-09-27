@@ -1,4 +1,4 @@
-import { eq, or } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { db } from '../../db'
 import { users } from '../../db/schema'
 import bcrypt from 'bcrypt'
@@ -12,7 +12,7 @@ export async function deleteUser({ id, password }: DeleteUserRequest) {
   const existingUser = await db
     .select()
     .from(users)
-    .where(or(eq(users.id, id), eq(users.password, password)))
+    .where(and(eq(users.id, id), eq(users.password, password)))
     .limit(1)
 
   if (existingUser.length === 0) {
