@@ -18,119 +18,80 @@ export async function getSingleUser({ email, password }: GetSingleUserRequest) {
       id: users.id,
       name: users.name,
       email: users.email,
-      password: users.password,
       profilePicture: users.profilePicture,
+      TotalTasks: sql /*sql*/`
+        (SELECT SUM(${tasks.weeklyFrequency}) FROM ${tasks} WHERE tasks.user_id = users.id)
+      `.mapWith(Number),
     })
     .from(users)
     .where(eq(users.email, email))
 
-  if (!user || !(await bcrypt.compare(password, user.password))) {
+  const [Validuser] = await db.select().from(users).where(eq(users.id, user.id))
+
+  if (!user || !(await bcrypt.compare(password, Validuser.password))) {
     throw new Error('Email ou senha incorretos!')
   }
 
   const tasksCreatedInWeek = db.$with('tasks_created_in_week').as(
     db
-      .select({
-        id: tasks.id,
-        userId: tasks.userId,
-        title: tasks.title,
-        weeklyFrequency: tasks.weeklyFrequency,
-        createdAt: tasks.createdAt,
-      })
+      .select()
       .from(tasks)
       .where(
-        and(eq(tasks.userId, user.id), lte(tasks.createdAt, lastDayOfWeek))
+        and(
+          gte(tasks.createdAt, firstDayOfWeek),
+          lte(tasks.createdAt, lastDayOfWeek),
+          eq(tasks.userId, user.id)
+        )
       )
   )
 
-  const tasksCompletedInWeek = db.$with('tasks_completed_in_week').as(
+  const completedTask = db.$with('completed_task').as(
     db
       .select({
-        id: taskCompleted.id,
         taskId: taskCompleted.taskId,
-        title: tasks.title,
-        completedAt: taskCompleted.createdAt,
+        completionCount: count(taskCompleted.id).as('completionCount'),
         completedAtDate: sql /*sql*/`
-            DATE(${taskCompleted.createdAt})
-        `.as('completedAtDate'),
+            MIN(DATE(${taskCompleted.createdAt}))
+          `.as('completedAtDate'),
+        completions: sql /*sql*/`
+            JSON_AGG(
+              JSON_BUILD_OBJECT(
+                'completedAt', ${taskCompleted.createdAt}
+              ) 
+            ) 
+          `.as('completions'),
       })
       .from(taskCompleted)
-      .innerJoin(tasks, eq(tasks.id, taskCompleted.taskId))
+      .leftJoin(tasks, eq(tasks.id, taskCompleted.taskId))
       .where(
         and(
-          eq(tasks.userId, user.id),
+          eq(tasks.id, taskCompleted.taskId),
           gte(taskCompleted.createdAt, firstDayOfWeek),
           lte(taskCompleted.createdAt, lastDayOfWeek)
         )
       )
-      .orderBy(desc(taskCompleted.createdAt))
+      .groupBy(taskCompleted.taskId)
+    // .orderBy(taskCompleted.createdAt)
   )
 
-  const taskCompletedByWeek = db.$with('task_completed_by_week').as(
-    db
-      .select({
-        taskId: tasksCompletedInWeek.taskId,
-        completedAtDate: tasksCompletedInWeek.completedAtDate,
-        completions: sql /*sql*/`
-            JSON_AGG(
-                JSON_BUILD_OBJECT(
-                    'id', ${taskCompleted.id},
-                    'title', ${tasks.title},
-                    'completedAt', ${tasksCompletedInWeek.completedAt}
-                )
-            )
-        `.as('completions'),
-      })
-      .from(tasksCompletedInWeek)
-      .groupBy(tasksCompletedInWeek.id, tasksCompletedInWeek.completedAtDate)
-      .orderBy(tasksCompletedInWeek.completedAtDate)
-  )
-
-  type TasksPerDay = Record<
-    string,
-    {
-      id: string
-      title: string
-      completedAt: string
-    }
-  >
-
-  const [tasksCreatedPerUser] = await db
-    .with(tasksCreatedInWeek, tasksCompletedInWeek, taskCompletedByWeek)
+  const pendingTasks = await db
+    .with(tasksCreatedInWeek, completedTask)
     .select({
       id: tasksCreatedInWeek.id,
       userId: tasksCreatedInWeek.userId,
       title: tasksCreatedInWeek.title,
       weeklyFrequency: tasksCreatedInWeek.weeklyFrequency,
-      createdAt: tasksCreatedInWeek.createdAt,
-      completed: sql /*sql*/`
-        (SELECT COUNT(*) FROM ${tasksCompletedInWeek})
+      completionCount: sql /*sql*/`
+        COALESCE(${completedTask.completionCount}, 0)
     `.mapWith(Number),
-      total: sql /*sql*/`
-        (SELECT SUM(${tasksCreatedInWeek.weeklyFrequency}) FROM ${tasksCreatedInWeek})
-    `.mapWith(Number),
-      TasksPerDay: sql /*sql*/<TasksPerDay>`
-        JSON_OBJECT_AGG(
-            ${taskCompletedByWeek.completedAtDate},
-            ${taskCompletedByWeek.completions}
-        )
-    `,
+      completedAtDate: completedTask.completedAtDate,
+      complitions: completedTask.completions,
     })
     .from(tasksCreatedInWeek)
-    .leftJoin(
-      taskCompletedByWeek,
-      eq(tasksCreatedInWeek.id, taskCompletedByWeek.taskId)
-    )
-    .where(
-      and(
-        gte(tasksCreatedInWeek.createdAt, firstDayOfWeek),
-        lte(tasksCreatedInWeek.createdAt, lastDayOfWeek),
-        eq(tasksCreatedInWeek.userId, user.id)
-      )
-    )
+    .leftJoin(completedTask, eq(tasksCreatedInWeek.id, completedTask.taskId))
 
   return {
     user: user,
-    tasks: tasksCreatedPerUser,
+    tasks: pendingTasks,
   }
 }

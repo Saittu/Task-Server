@@ -2,6 +2,7 @@ import { client, db } from '.'
 import { users, tasks, taskCompleted } from './schema'
 import dayjs from 'dayjs'
 import bcrypt from 'bcrypt'
+import { exit } from 'node:process'
 
 async function seed() {
   await db.delete(users)
@@ -51,4 +52,5 @@ async function seed() {
 
 seed().finally(() => {
   client.end()
+  exit()
 })
